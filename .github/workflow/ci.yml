@@ -1,0 +1,86 @@
+name: Email Service deployment
+on: push
+jobs: 
+  lint:
+    runs-on: ubuntu
+    steps: 
+      - name: Checkout your branch
+        uses: actions/checkout@v4
+      - name: Cache local npm
+        uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: deps-node-module-${{ hashFiles('**/package-lock.json') }}
+      - name: Then install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+
+      - name: Then install dependencies
+        run: npm ci
+        
+      - name: Run the npm lint
+        run: npm run lint
+  test:
+    runs-on: ubuntu-latest
+    steps: 
+      - name: Checkout your branch
+        uses: actions/checkout@v4
+      - name: Cache local npm
+        uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: deps-node-module-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Then install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+
+      - name: Then install dependencies
+        run: npm ci
+
+      - name: Run the test
+        run: npm run test
+  build:
+      runs-on: ubuntu-latest
+      outputs: 
+        build_version: ${{ steps.metadata.outputs.version }}
+      steps: 
+        - name: Checkout your branch
+          uses: actions/checkout@v4
+
+        - name: Then install Node.js
+          uses: actions/setup-node@v6
+          with:
+            node-version: 22.x
+        - name: Cache local npm
+          uses: actions/cache@v6
+          with:
+            path: ~/.npm
+            key: deps-node-module-${{ hashFiles('**/package-lock.json') }}
+            
+        - name: Then install dependencies
+          run: npm ci
+
+        - name: build the application 
+          run: npm run build
+        - name: Build with local composite action
+          id: node_build
+          uses: ./.github/actions/node-build
+          with:
+            node_version: '22.x'
+            run_tests: 'false'
+
+        - name: test output
+          id: metadata
+          run: echo "version=1.0.0" >> "$GITHUB_OUTPUT"
+        - name: Upload build output
+          uses: actions/upload-artifact@v4
+          with:
+            name: nest-build
+            path: dist/
+            if-no-files-found: error
+            continue-on-error: true
+            retention-days: 7
+    
