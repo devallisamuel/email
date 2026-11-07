@@ -1,16 +1,27 @@
-  services:
-    db:
-      image: postgres:16-alpine
-      container_name: email-postgres
-      restart: unless-stopped
-      environment:
-        POSTGRES_USER: ${DB_USERNAME}
-        POSTGRES_PASSWORD: ${DB_PASSWORD}
-        POSTGRES_DB: ${DB_NAME}
-      ports:
-        - "${DB_PORT}:5432"
-      volumes:
-        - postgres_data:/var/lib/postgresql/data
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: email-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
-  volumes:
-    postgres_data:
+  worker:
+    build: .
+    command: node dist/worker
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
