@@ -1,4 +1,20 @@
 services:
+  api:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      LOKI_URL: http://loki:3100/loki/api/v1/push
+      LOKI_SERVICE_NAME: email-service
+      APP_COMPONENT: api
+    ports:
+      - "${API_PORT:-3000}:3000"
+    depends_on:
+      - db
+      - loki
+
   db:
     image: postgres:16-alpine
     container_name: email-postgres
@@ -20,8 +36,52 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 5432
+      LOKI_URL: http://loki:3100/loki/api/v1/push
+      LOKI_SERVICE_NAME: email-service
+      APP_COMPONENT: worker
     depends_on:
       - db
+      - loki
+
+  loki:
+    image: grafana/loki:3.3.2
+    command: -config.file=/etc/loki/config.yml
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./observability/loki/config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+
+  prometheus:
+    image: prom/prometheus:v3.3.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "${GRAFANA_PORT:-3300}:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - loki
+      - prometheus
 
 volumes:
   postgres_data:
+  loki_data:
+  prometheus_data:
+  grafana_data:
