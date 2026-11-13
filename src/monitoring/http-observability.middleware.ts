@@ -20,9 +20,8 @@ export class HttpObservabilityMiddleware implements NestMiddleware {
 
     response.once('finish', () => {
       const durationSeconds = Number(process.hrtime.bigint() - startedAt) / 1e9;
-      const route = request.route?.path
-        ? `${request.baseUrl}${request.route.path}`
-        : request.path;
+      const routePath = (request.route as { path?: string } | undefined)?.path;
+      const route = routePath ? `${request.baseUrl}${routePath}` : request.path;
 
       this.metricsService.recordHttpRequest(
         request.method,

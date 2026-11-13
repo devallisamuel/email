@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EmailRepository } from '../../application/port/repositories/email.repository.port';
 import { EmailEntity } from '../../domain/entity/email.entity';
 import { EmailId } from '../../domain/value-object/email-id.vo';
-import { EmailStatus, EmailStatusType } from '../../domain/value-object/email-status.vo';
+import {
+  EmailStatus,
+  EmailStatusType,
+} from '../../domain/value-object/email-status.vo';
 import { EmailOrmEntity } from '../persistence/typeorm/entities/email.orm-entity';
 import { Repository } from 'typeorm';
 
@@ -38,18 +41,20 @@ export class TypeOrmEmailRepository implements EmailRepository {
     const now = new Date();
 
     const claimedEmails = await this.repository.manager.transaction(
-      async (manager) =>  {
+      async (manager) => {
         const repository = manager.getRepository(EmailOrmEntity);
 
-        const emails = await repository.createQueryBuilder('email').where('email.status = :status', {
-          status: EmailStatusType.PENDING
-        })
-        .andWhere('email.nextAttemptAt <= :now', { now })
-        .orderBy('email.createdAt', 'ASC')
-        .take(limit)
-        .setLock('pessimistic_write')
-        .setOnLocked('skip_locked')
-        .getMany();
+        const emails = await repository
+          .createQueryBuilder('email')
+          .where('email.status = :status', {
+            status: EmailStatusType.PENDING,
+          })
+          .andWhere('email.nextAttemptAt <= :now', { now })
+          .orderBy('email.createdAt', 'ASC')
+          .take(limit)
+          .setLock('pessimistic_write')
+          .setOnLocked('skip_locked')
+          .getMany();
 
         if (emails.length === 0) {
           return [];
@@ -75,8 +80,8 @@ export class TypeOrmEmailRepository implements EmailRepository {
             processingStartedAt: now,
           }),
         );
-      }
-    )
+      },
+    );
     return claimedEmails.map((email) => this.toDomain(email));
   }
 

@@ -11,7 +11,8 @@ export class LokiLoggerService implements LoggerService {
 
   constructor(configService: ConfigService) {
     this.lokiUrl = configService.get<string>('LOKI_URL');
-    this.serviceName = configService.get<string>('LOKI_SERVICE_NAME') ?? 'email-service';
+    this.serviceName =
+      configService.get<string>('LOKI_SERVICE_NAME') ?? 'email-service';
     this.component = configService.get<string>('APP_COMPONENT') ?? 'api';
   }
 
@@ -60,7 +61,9 @@ export class LokiLoggerService implements LoggerService {
     };
     const timestamp = (BigInt(Date.now()) * 1_000_000n).toString();
     const payload = {
-      streams: [{ stream: labels, values: [[timestamp, JSON.stringify(entry)]] }],
+      streams: [
+        { stream: labels, values: [[timestamp, JSON.stringify(entry)]] },
+      ],
     };
 
     void fetch(this.lokiUrl, {
@@ -68,13 +71,19 @@ export class LokiLoggerService implements LoggerService {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(2_000),
-    }).then((response) => {
-      if (!response.ok) {
-        process.stderr.write(`Loki log delivery failed: HTTP ${response.status}\n`);
-      }
-    }).catch((error: unknown) => {
-      process.stderr.write(`Loki log delivery failed: ${this.toMessage(error)}\n`);
-    });
+    })
+      .then((response) => {
+        if (!response.ok) {
+          process.stderr.write(
+            `Loki log delivery failed: HTTP ${response.status}\n`,
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        process.stderr.write(
+          `Loki log delivery failed: ${this.toMessage(error)}\n`,
+        );
+      });
   }
 
   private toMessage(value: unknown): string {

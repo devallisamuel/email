@@ -1,4 +1,3 @@
-
 type EntityId = string | { value: string };
 
 type EntityProps = {

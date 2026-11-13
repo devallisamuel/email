@@ -10,13 +10,14 @@ import { CreateBulkEmailsCommand } from './create-bulk-emails.command';
 import { ConfigService } from '@nestjs/config';
 
 @CommandHandler(CreateBulkEmailsCommand)
-export class CreateBulkEmailsHandler
-  implements ICommandHandler<CreateBulkEmailsCommand, EmailEntity[]>
-{
+export class CreateBulkEmailsHandler implements ICommandHandler<
+  CreateBulkEmailsCommand,
+  EmailEntity[]
+> {
   constructor(
     @Inject(EMAIL_REPOSITORY)
     private readonly emailRepository: EmailRepository,
-    private configService: ConfigService
+    private configService: ConfigService,
   ) {}
 
   async execute(command: CreateBulkEmailsCommand): Promise<EmailEntity[]> {

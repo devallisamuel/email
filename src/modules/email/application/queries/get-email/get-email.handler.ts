@@ -6,9 +6,7 @@ import { EmailEntity } from '../../../domain/entity/email.entity';
 import { GetEmailQuery } from './get-email.query';
 
 @QueryHandler(GetEmailQuery)
-export class GetEmailHandler
-  implements IQueryHandler<GetEmailQuery>
-{
+export class GetEmailHandler implements IQueryHandler<GetEmailQuery> {
   constructor(
     @Inject(EMAIL_REPOSITORY)
     private readonly emailRepository: EmailRepository,

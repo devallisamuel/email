@@ -1,10 +1,5 @@
 import { EmailStatusType } from '../../../../domain/value-object/email-status.vo';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryColumn,
-} from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'emails' })
 export class EmailOrmEntity {
@@ -41,7 +36,11 @@ export class EmailOrmEntity {
   })
   nextAttemptAt!: Date;
 
-  @Column({ name: 'processing_started_at', type: 'timestamptz', nullable: true })
+  @Column({
+    name: 'processing_started_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
   processingStartedAt!: Date | null;
 
   @Column({ name: 'last_error', type: 'text', nullable: true })

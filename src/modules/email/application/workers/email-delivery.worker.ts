@@ -1,4 +1,9 @@
-import { Inject, Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EMAIL_REPOSITORY } from '../port/repositories/email.repository.port';
 import type { EmailRepository } from '../port/repositories/email.repository.port';
@@ -82,7 +87,9 @@ export class EmailDeliveryWorker implements OnApplicationShutdown {
 
       if (email.attempts >= maxAttempts) {
         await this.emailRepository.markFailed(email.emailId, errorMessage);
-        this.logger.error(`Email ${email.id} failed permanently: ${errorMessage}`);
+        this.logger.error(
+          `Email ${email.id} failed permanently: ${errorMessage}`,
+        );
         return;
       }
 

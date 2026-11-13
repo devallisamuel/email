@@ -1,15 +1,12 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
-import {
-  ApiCreatedResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateBulkEmailsCommand } from '../../application/commands/create-bulk-emails/create-bulk-emails.command';
 import { CreateEmailCommand } from '../../application/commands/create-email/create-email.command';
 import { CreateBulkEmailsDto } from './dto/create-bulk-emails.dto';
 import { CreateEmailDto } from './dto/create-email.dto';
 import { EmailResponseDto } from './dto/email-response.dto';
+import { EmailEntity } from '../../domain/entity/email.entity';
 
 @ApiTags('emails')
 @Controller('emails')
@@ -24,9 +21,10 @@ export class EmailController {
     type: EmailResponseDto,
   })
   async create(@Body() dto: CreateEmailDto): Promise<EmailResponseDto> {
-    const email = await this.commandBus.execute(
-      new CreateEmailCommand(dto.recipient, dto.subject, dto.body),
-    );
+    const email = await this.commandBus.execute<
+      CreateEmailCommand,
+      EmailEntity
+    >(new CreateEmailCommand(dto.recipient, dto.subject, dto.body));
 
     return EmailResponseDto.fromDomain(email);
   }
@@ -42,9 +40,10 @@ export class EmailController {
   async createBulk(
     @Body() dto: CreateBulkEmailsDto,
   ): Promise<EmailResponseDto[]> {
-    const emails = await this.commandBus.execute(
-      new CreateBulkEmailsCommand(dto.emails),
-    );
+    const emails = await this.commandBus.execute<
+      CreateBulkEmailsCommand,
+      EmailEntity[]
+    >(new CreateBulkEmailsCommand(dto.emails));
 
     return emails.map((email) => EmailResponseDto.fromDomain(email));
   }

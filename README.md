@@ -1,98 +1,154 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Email Service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+[![CI](https://github.com/devallisamuel/email/actions/workflows/ci.yml/badge.svg)](https://github.com/devallisamuel/email/actions/workflows/ci.yml)
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+A NestJS service that accepts email requests over HTTP, stores them in PostgreSQL, and delivers them through SMTP using a background worker. Delivery is retried with exponential backoff, and the service ships with Prometheus metrics and Loki logging.
 
-## Description
+## Features
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **HTTP API** for queuing single or bulk (up to 100) emails, documented with Swagger.
+- **CQRS and hexagonal layout**: commands, queries, domain entities, ports and adapters.
+- **Background delivery worker** that leases pending emails, sends them over SMTP, and retries failures with exponential backoff until `EMAIL_MAX_ATTEMPTS` is reached.
+- **PostgreSQL persistence** with TypeORM migrations.
+- **Observability**: Prometheus metrics at `/metrics`, structured logs pushed to Loki, and a provisioned Grafana instance.
 
-## Project setup
+## Architecture
 
-```bash
-$ npm install
+```
+            POST /emails             poll + lease            SMTP
+ Client ───────────────▶  API  ──▶  PostgreSQL  ◀──────  Worker  ──────▶ Provider
+                           │                               │
+                           └──── metrics / logs ───────────┴──▶ Prometheus · Loki · Grafana
 ```
 
-## Compile and run the project
+| Process | Entry point | Purpose |
+| --- | --- | --- |
+| API | `src/main.ts` | Validates requests and stores emails as `pending`. |
+| Worker | `src/worker.ts` | Sends pending emails and records the result (`completed`, retry, or `failed`). |
 
-```bash
-# development
-$ npm run start
+Source layout:
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```
+src/
+├── database/            # TypeORM data source and migrations
+├── modules/email/
+│   ├── application/     # Commands, queries, ports, delivery worker
+│   ├── domain/          # Email entity and value objects
+│   ├── infrastructure/  # TypeORM repository and SMTP adapter
+│   └── presentation/    # HTTP controller and DTOs
+├── monitoring/          # Metrics, Loki logger, HTTP middleware
+└── shared/              # Base entity and value object
 ```
 
-## Run tests
+## Requirements
+
+- Node.js 22
+- npm
+- Docker and Docker Compose (for the full local stack)
+
+## Configuration
+
+Copy the example file and fill in your values:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cp .env.example .env
 ```
 
-## Deployment
+| Variable | Description |
+| --- | --- |
+| `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | PostgreSQL connection. |
+| `EMAIL_FROM` | Sender address used for every email. |
+| `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_SECURE` | SMTP server settings. |
+| `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD` | SMTP credentials (optional if the server needs no auth). |
+| `EMAIL_WORKER_BATCH_SIZE` | Emails the worker claims per poll (default `10`). |
+| `EMAIL_WORKER_IDLE_DELAY_MS` | Wait between polls when the queue is empty (default `1000`). |
+| `EMAIL_WORKER_LEASE_MS` | How long a claimed email stays locked to one worker (default `300000`). |
+| `EMAIL_MAX_ATTEMPTS` | Attempts before an email is marked `failed` (default `5`). |
+| `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`, `GRAFANA_PORT` | Local Grafana settings. |
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Never commit `.env`; it is git-ignored.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Running locally
+
+### Full stack with Docker Compose
+
+Starts the API, worker, PostgreSQL, Loki, Prometheus, and Grafana:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+docker compose up --build -d
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+| Service | Address |
+| --- | --- |
+| API | http://localhost:3000 |
+| Swagger UI | http://localhost:3000/api |
+| Metrics | http://localhost:3000/metrics |
+| Grafana | http://localhost:3300 |
+| Prometheus | http://localhost:9090 |
+| Loki | http://localhost:3100 |
 
-## Resources
+See [observability/README.md](observability/README.md) for useful LogQL and PromQL queries.
 
-Check out a few resources that may come in handy when working with NestJS:
+### Without Docker
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Start PostgreSQL (for example `docker compose up -d db`), then:
 
-## Support
+```bash
+npm install
+npm run migration:run   # apply database migrations
+npm run start:dev       # API in watch mode
+npm run worker:dev      # delivery worker in watch mode (separate terminal)
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## API
 
-## Stay in touch
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/emails` | Queue one email. |
+| `POST` | `/emails/bulk` | Queue up to 100 emails. |
+| `GET` | `/metrics` | Prometheus metrics. |
+| `GET` | `/api` | Swagger UI. |
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Example:
+
+```bash
+curl -X POST http://localhost:3000/emails \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "recipient": "recipient@example.com",
+    "subject": "Welcome to the service.",
+    "body": "Hello from the email service."
+  }'
+```
+
+The response contains the email's `id` and its `pending` status. The worker picks it up and delivers it.
+
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run start:dev` | Run the API in watch mode. |
+| `npm run worker:dev` | Run the delivery worker in watch mode. |
+| `npm run build` | Compile to `dist/`. |
+| `npm run start:prod` | Run the compiled API. |
+| `npm run worker` | Build and run the compiled worker. |
+| `npm run migration:run` | Apply database migrations. |
+| `npm run migration:revert` | Revert the last migration. |
+| `npm run lint` | Lint and auto-fix. |
+| `npm run lint:ci` | Lint without fixing; fails on any warning. |
+| `npm test` | Run unit tests. |
+| `npm run test:cov` | Run unit tests with coverage. |
+| `npm run test:e2e` | Run end-to-end tests. |
+
+## Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request to `main`:
+
+1. **Lint**: `npm run lint:ci`
+2. **Unit tests**: `npm test`
+3. **Build**: compiles the app and uploads `dist/` as an artifact (after lint and tests pass)
+4. **Docker image**: checks that the `Dockerfile` builds (after lint and tests pass)
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED. Private project.

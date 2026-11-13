@@ -61,7 +61,9 @@ describe('EmailDeliveryWorker', () => {
     const email = createEmail();
     emailSender.send.mockResolvedValue('provider-message-id');
 
-    await (worker as unknown as { deliver(email: EmailEntity): Promise<void> }).deliver(email);
+    await (
+      worker as unknown as { deliver(email: EmailEntity): Promise<void> }
+    ).deliver(email);
 
     expect(emailRepository.markCompleted).toHaveBeenCalledWith(
       email.emailId,
@@ -77,7 +79,9 @@ describe('EmailDeliveryWorker', () => {
     jest.spyOn(Date, 'now').mockReturnValue(now.getTime());
     emailSender.send.mockRejectedValue(new Error('SMTP connection timed out'));
 
-    await (worker as unknown as { deliver(email: EmailEntity): Promise<void> }).deliver(email);
+    await (
+      worker as unknown as { deliver(email: EmailEntity): Promise<void> }
+    ).deliver(email);
 
     expect(emailRepository.scheduleRetry).toHaveBeenCalledWith(
       email.emailId,
@@ -95,7 +99,9 @@ describe('EmailDeliveryWorker', () => {
     );
     emailSender.send.mockRejectedValue(new Error('SMTP rejected credentials'));
 
-    await (worker as unknown as { deliver(email: EmailEntity): Promise<void> }).deliver(email);
+    await (
+      worker as unknown as { deliver(email: EmailEntity): Promise<void> }
+    ).deliver(email);
 
     expect(emailRepository.markFailed).toHaveBeenCalledWith(
       email.emailId,

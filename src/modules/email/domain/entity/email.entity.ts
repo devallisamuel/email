@@ -2,7 +2,6 @@ import { Entity } from 'src/shared/domain/entity/shared.entity';
 import { EmailId } from '../value-object/email-id.vo';
 import { EmailStatus } from '../value-object/email-status.vo';
 
-
 type EmailProps = {
   id: EmailId;
   sender: string;
